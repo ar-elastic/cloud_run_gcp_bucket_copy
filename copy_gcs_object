@@ -1,0 +1,51 @@
+import os
+import google.auth
+from google.cloud import storage
+import functions_framework
+
+@functions_framework.cloud_event
+def copy_gcs_object(cloud_event):
+    """
+    This Cloud Function is triggered by a Cloud Storage event and copies an object
+    from one bucket to another.
+
+    Args:
+        cloud_event (dict):  The Cloud Functions event payload.
+    """
+
+    # Extract bucket and file information from the Cloud Event
+    bucket_name = cloud_event.data["bucket"]
+    file_name = cloud_event.data["name"]
+
+    # Define source and destination buckets
+    source_bucket_name = "source-bucket123"
+    destination_bucket_name = "destination-bucket1234"
+
+    # Check if the event originates from the correct source bucket
+    if bucket_name != source_bucket_name:
+        print(f"Event from unexpected bucket: {bucket_name}.  Expected: {source_bucket_name}")
+        return  # Exit if not the source bucket
+
+    # Initialize the Cloud Storage client
+    storage_client = storage.Client()
+
+    # Get the source bucket and blob
+    source_bucket = storage_client.bucket(source_bucket_name)
+    source_blob = source_bucket.blob(file_name)
+
+    # Get the destination bucket
+    destination_bucket = storage_client.bucket(destination_bucket_name)
+
+    # Construct the destination blob name (same as the source)
+    destination_blob_name = file_name
+
+    # Copy the blob from the source bucket to the destination bucket
+    try:
+        new_blob = source_bucket.copy_blob(
+            source_blob, destination_bucket, destination_blob_name
+        )
+        print(f"File {file_name} copied from {source_bucket_name} to {destination_bucket_name}/{destination_blob_name}")
+
+    except Exception as e:
+        print(f"Error copying file: {e}")
+        raise  # Re-raise the exception to signal function failure
